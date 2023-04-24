@@ -1,0 +1,96 @@
+---
+title: "cap clacso"
+author: "Equipo EDUMER"
+date: "2022-11-24"
+output: 
+  html_document: 
+    toc: yes
+    code_folding: hide
+    toc_float: 
+      collapsed: true
+      smooth_scroll: false
+      number_sections: true
+---
+
+```{r}
+pacman::p_load(haven, dplyr, summarytools, sjmisc, car, sjlabelled, sjPlot, lme4, stargazer, corrplot, ltm, texreg, ordinal, MASS, webshot, ggplot2)
+load("input/data/proc/alumnos_patterns.RData")
+```
+
+```{r}
+# Seleccionar variables de interes
+data_est <- alumnos_patterns %>% dplyr::select(inteligencia_esc=est_p6_1, # inteligencia escolar
+                                               esfuerzo_esc=est_p6_2, # esfuerzo escolar
+                                               esfuerzo_soc=est_p38_2, #esfuerzo social
+                                               merito_soc=est_p38_3, #merito social
+                                               inteligencia_soc=est_p38_4, #inteligencia social
+                                               desigualdad=est_p38_5
+                                               ) %>% as.data.frame(.)
+```
+
+# Descriptivos
+
+```{r echo = FALSE}
+print(dfSummary(data_est, headings = FALSE), method = "render")
+```
+
+# Asociación de variables
+
+## Percepción de desigualdad x Inteligencia en la escuela
+
+```{r echo = FALSE}
+sjt.xtab(data_est$inteligencia_esc, data_est$desigualdad,
+        show.col.prc=TRUE,
+        show.summary=FALSE
+)
+```
+
+## Percepción de desigualdad x Esfuerzo en la escuela
+
+```{r echo = FALSE}
+sjt.xtab(data_est$esfuerzo_esc, data_est$desigualdad,
+        show.col.prc=TRUE,
+        show.summary=FALSE
+)
+```
+
+## Percepción de desigualdad x Esfuerzo en la sociedad
+
+```{r echo = FALSE}
+sjt.xtab(data_est$esfuerzo_soc, data_est$desigualdad,
+        show.col.prc=TRUE,
+        show.summary=FALSE
+)
+```
+
+## Percepción de desigualdad x Mérito en la sociedad
+
+```{r echo = FALSE}
+sjt.xtab(data_est$merito_soc, data_est$desigualdad,
+        show.col.prc=TRUE,
+        show.summary=FALSE
+)
+```
+
+## Percepción de desigualdad x Inteligencia en la sociedad
+
+```{r echo = FALSE}
+sjt.xtab(data_est$inteligencia_soc, data_est$desigualdad,
+        show.col.prc=TRUE,
+        show.summary=FALSE
+)
+```
+
+## Matriz de correlaciones
+
+```{r echo = FALSE}
+data_est$inteligencia_esc <- as.numeric(data_est$inteligencia_esc)
+data_est$esfuerzo_esc <- as.numeric(data_est$esfuerzo_esc)
+data_est$esfuerzo_soc <- as.numeric(data_est$esfuerzo_soc)
+data_est$merito_soc <- as.numeric(data_est$merito_soc)
+data_est$inteligencia_soc <- as.numeric(data_est$inteligencia_soc)
+data_est$desigualdad <- as.numeric(data_est$desigualdad)
+
+tab_corr(data_est, corr.method = "spearman")
+```
+
