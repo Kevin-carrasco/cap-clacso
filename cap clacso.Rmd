@@ -15,17 +15,41 @@ output:
 ```{r}
 pacman::p_load(haven, dplyr, summarytools, sjmisc, car, sjlabelled, sjPlot, lme4, stargazer, corrplot, ltm, texreg, ordinal, MASS, webshot, ggplot2)
 load("input/data/proc/alumnos_patterns.RData")
+load("input/data/proc/apoderados_patterns.RData")
 ```
 
 ```{r}
 # Seleccionar variables de interes
-data_est <- alumnos_patterns %>% dplyr::select(inteligencia_esc=est_p6_1, # inteligencia escolar
+data_est <- alumnos_patterns %>% dplyr::select(idalumno,
+                                               sexo,
+                                               codigoCurso,
+                                               mrbd,
+                                               cod_depe2, #dependencia administrativa
+                                               cod_grupo, #categorizacion socioeconomica
+                                               simce_lect=prom_lect8b_rbd, #Promedio lectura escuela
+                                               simce_mate=prom_mate8b_rbd, # Promedio matematica escuela
+                                               inteligencia_esc=est_p6_1, # inteligencia escolar
                                                esfuerzo_esc=est_p6_2, # esfuerzo escolar
                                                esfuerzo_soc=est_p38_2, #esfuerzo social
                                                merito_soc=est_p38_3, #merito social
                                                inteligencia_soc=est_p38_4, #inteligencia social
-                                               desigualdad=est_p38_5
+                                               desigualdad=est_p38_5,
+                                               libros=est_p3, # cantidad de libros
                                                ) %>% as.data.frame(.)
+# otras posibles variables:
+# En Chile, las personas tienen igualdad de oportunidades para salir adelante (est_p38_1)
+# quizás otras de ciudadanía como confianza en instituciones... tmb puede ser eso de involucramiento cognitivo (uso de medios de comunicación para informarse)
+
+
+data_apod <- apoderados_patterns %>% dplyr::select(idalumno,
+                                               educacion=educ_max, # nivel educacional mas alto
+                                               internet=apod_p9 # conexion a internet en la casa
+                                               ) %>% as.data.frame(.)
+```
+
+## merge bases
+```{r}
+data <- left_join(data_est, data_apod, by="idalumno")
 ```
 
 # Descriptivos
@@ -84,13 +108,65 @@ sjt.xtab(data_est$inteligencia_soc, data_est$desigualdad,
 ## Matriz de correlaciones
 
 ```{r echo = FALSE}
-data_est$inteligencia_esc <- as.numeric(data_est$inteligencia_esc)
-data_est$esfuerzo_esc <- as.numeric(data_est$esfuerzo_esc)
-data_est$esfuerzo_soc <- as.numeric(data_est$esfuerzo_soc)
-data_est$merito_soc <- as.numeric(data_est$merito_soc)
-data_est$inteligencia_soc <- as.numeric(data_est$inteligencia_soc)
-data_est$desigualdad <- as.numeric(data_est$desigualdad)
+data$inteligencia_esc <- as.numeric(data$inteligencia_esc)
+data$esfuerzo_esc <- as.numeric(data$esfuerzo_esc)
+data$esfuerzo_soc <- as.numeric(data$esfuerzo_soc)
+data$merito_soc <- as.numeric(data$merito_soc)
+data$inteligencia_soc <- as.numeric(data$inteligencia_soc)
+data$desigualdad <- as.numeric(data$desigualdad)
 
-tab_corr(data_est, corr.method = "spearman")
+data %>% dplyr::select(inteligencia_esc, esfuerzo_esc, esfuerzo_soc, merito_soc, inteligencia_soc, desigualdad) %>% 
+  tab_corr(corr.method = "spearman")
 ```
+
+```{r}
+# Educacion. 10 categorías, se recodifican en 4 y una de no sabe y no responde
+data$educacion_rec <- ifelse(is.na(data$educacion), "Ns/Nr", data$educacion)
+data <- data %>% rowwise() %>%  mutate(educacion_rec = case_when(educacion_rec==1~"8vo grado o menos",
+                                                 educacion_rec==2~"8vo grado o menos",
+                                                 educacion_rec==3~"8vo grado o menos",
+                                                 educacion_rec==4~"Educación secundaria",
+                                                 educacion_rec==5~"Educación secundaria",
+                                                 educacion_rec==6~"Educación técnica",
+                                                 educacion_rec==7~"Educación técnica",
+                                                 educacion_rec==8~"Universidad o postgrado",
+                                                 educacion_rec==9~"Universidad o postgrado",
+                                                 educacion_rec==10~"Universidad o postgrado",
+                                                 educacion_rec=="Ns/Nr"~"Ns/Nr"
+                                                 ))
+data$educacion_rec <- factor(data$educacion_rec, levels = c("8vo grado o menos", "Educación secundaria", "Educación técnica", "Universidad o postgrado", "Ns/Nr"))
+data$educacion_rec <- set_label(data$educacion_rec,label = "Nivel educacional de los padres")
+
+# libros
+data$libros_rec <- as.numeric(data$libros)
+data <- data %>% rowwise() %>% mutate(libros_rec = case_when(libros_rec==1 ~ "Menos de 25",
+                                                             libros_rec==2 ~ "Menos de 25",
+                                                             libros_rec==3 ~ "Más de 25",
+                                                             libros_rec==4 ~ "Más de 25",
+                                                             libros_rec==5 ~ "Más de 25"))
+data$libros_rec <- factor(data$libros_rec, levels = c("Menos de 25", "Más de 25"))
+data$libros_rec <- set_label(data$libros_rec,label = "Cantidad de libros en el hogar")
+## Promedio simce
+data <- data %>% rowwise() %>% mutate(prom_simce = mean(simce_lect,simce_mate))
+summary(data$prom_simce)
+data$prom_simce <- set_label(data$prom_simce,label = "Logro SIMCE en la escuela")
+```
+
+## Regresiones
+
+```{r results='asis'}
+dat <- data %>% dplyr::select(sexo, mrbd, cod_depe2, cod_grupo, inteligencia_esc, esfuerzo_esc, inteligencia_soc, esfuerzo_soc, merito_soc, desigualdad, libros_rec, educacion_rec, prom_simce) %>% 
+  na.omit()
+
+reg0 <- lmer(desigualdad ~ 1 + (1|mrbd), data = dat)
+reg1 <- lmer(desigualdad ~ 1 + esfuerzo_soc + merito_soc + inteligencia_soc + (1 | mrbd), data=dat)
+reg2 <- lmer(desigualdad ~ 1 + esfuerzo_soc + merito_soc + inteligencia_soc + esfuerzo_esc + inteligencia_esc + (1 | mrbd), data=dat)
+reg3 <- lmer(desigualdad ~ 1 + esfuerzo_soc + merito_soc + inteligencia_soc + esfuerzo_esc + inteligencia_esc + educacion_rec + libros_rec + (1 | mrbd), data=dat)
+reg4 <- lmer(desigualdad ~ 1 + esfuerzo_soc + merito_soc + inteligencia_soc + esfuerzo_esc + inteligencia_esc + educacion_rec + libros_rec + cod_depe2 + cod_grupo + (1 | mrbd), data=dat)
+reg5 <- lmer(desigualdad ~ 1 + esfuerzo_soc + merito_soc + inteligencia_soc + esfuerzo_esc + inteligencia_esc + educacion_rec + libros_rec + cod_depe2 + cod_grupo + prom_simce + (1 | mrbd), data=dat)
+
+htmlreg(list(reg1, reg2, reg3, reg4, reg5))
+```
+
+
 

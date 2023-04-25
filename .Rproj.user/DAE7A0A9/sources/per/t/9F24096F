@@ -1,9 +1,9 @@
 {
     "id": "9F24096F",
-    "path": "D:/Users/kevin/Documents/Fondecyt Meritocracia en la escuela/cap clacso/cap clacso.Rmd",
+    "path": "D:/Users/kevin/Documents/Fondecyt Meritocracia en la escuela/cap-clacso/cap clacso.Rmd",
     "project_path": "cap clacso.Rmd",
     "type": "r_markdown",
-    "hash": "496354448",
+    "hash": "700665785",
     "contents": "",
     "dirty": false,
     "created": 1681793522794.0,
@@ -11,14 +11,16 @@
     "relative_order": 1,
     "properties": {
         "source_window_id": "",
-        "Source": "Source"
+        "Source": "Source",
+        "cursorPosition": "156,21",
+        "scrollLine": "143"
     },
     "folds": "",
-    "lastKnownWriteTime": 1669309223,
+    "lastKnownWriteTime": 1682389922,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1669309223,
+    "last_content_update": 1682389922519,
     "read_only": false,
     "read_only_alternatives": []
 }
