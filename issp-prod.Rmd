@@ -1,0 +1,98 @@
+---
+title: "issp-prod"
+date: "`r format(Sys.time(), '%A %d %B %Y %X')`"
+output:
+  bookdown::html_document2:
+    number_sections: true
+    toc: true
+    toc_float:
+        collapsed: false
+    toc_depth: 2
+    code_folding: "hide"
+editor_options:
+  chunk_output_type: console
+---
+
+# Cargar paquetes
+
+```{r}
+knitr::opts_chunk$set(warning = FALSE,
+                      message = FALSE, 
+                      cache = FALSE,
+                      results = "hold")
+options(scipen=999)
+if (!require("pacman")) install.packages("pacman") # instalar pacman
+pacman::p_load(dplyr, tidyr, haven, stargazer, sjmisc, sjPlot, sjlabelled, tidyverse, summarytools, ggplot2, ggpubr, texreg, webshot, survey, srvyr, ggrepel, kableExtra, ggpattern)
+```
+
+# cargar bases de datos Chile
+
+# cargar base de datos issp 1999
+
+```{r}
+data_2019 <- read_dta("input/data/original/ISSP2019.dta")
+
+chile_2019 <- data_2019 %>% filter(country==152) %>% dplyr::select(WEIGHT,
+                                                                   v21)
+
+summary(chile_2019$v21) # original
+```
+
+### eliminar NA (-99), (-98) y (-97)
+```{r}
+chile_2019 <- chile_2019 %>% set_na(., na = c(-9, -8), drop.levels = FALSE, as.tag = FALSE)
+summary(chile_2019$v21)
+```
+
+
+## Ponderadores
+
+* 2019
+```{r}
+chile_2019 <- chile_2019 %>% mutate_at(vars(starts_with(c("v"))), ~(as.numeric(.))) 
+chile_2019$v21 <- recode(chile_2019$v21, "1=5; 2=4; 3=3; 4=2; 5=1")
+
+chile_2019_exp <- chile_2019 %>% as_survey_design(ids = 1,
+                                                      weights = WEIGHT)
+```
+
+
+
+## Estimar mediana de cada oficio según sexo, para los tres años de ISSP
+
+```{r}
+chile_2019 %>% 
+  count(v21) %>% 
+  filter(!is.na(v21)) %>%
+  mutate(proporcion = (n / sum(n))*100 )
+
+
+data_2019 <- chile_2019_exp %>% group_by(v21) %>% 
+  summarise(diff = survey_prop(vartype = "ci", na.rm = TRUE))
+```
+
+## Graficos
+
+```{r}
+desigualdad_adultos <- data_2019 %>% filter(!is.na(v21)) %>% 
+  mutate(proporcion = diff*100 ) %>%
+  ggplot(aes(x = v21, y = proporcion)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Preocupación por la desigualdad") +
+  ylab("Proporción (%)") + 
+  ylim(0,50)+
+  scale_fill_brewer(palette = 1)+
+  theme_bw()+
+  geom_text(aes(label = paste0(round(proporcion,1),"%")), color = "black", vjust = -0.5, position = position_dodge(width = 1),size = 4)+
+  scale_x_continuous(limits = c(0.55, 5.45),
+                     breaks = seq(1, 5, by = 1),
+                     label = c("Muy en
+desacuerdo", "Desacuerdo",
+"Ni de acuerdo
+ni desacuerdo", "De acuerdo", "Muy de
+acuerdo"))
+desigualdad_adultos
+
+ggsave(desigualdad_adultos, file="output/graphs/desigualdad_adultos.png", width = 7,height = 7)
+```
+

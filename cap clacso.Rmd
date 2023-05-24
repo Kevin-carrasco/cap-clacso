@@ -142,7 +142,7 @@ data <- data %>% rowwise() %>% mutate(prom_simce = mean(simce_lect,simce_mate))
 summary(data$prom_simce)
 data$prom_simce <- set_label(data$prom_simce,label = "Logro SIMCE en la escuela")
 
-data$sexo <- factor(data$sexo, labels = c("Niñas", "Niños"))
+data$sexo <- factor(data$sexo, labels = c("Niña", "Niño"))
 data$sexo <- set_label(data$sexo,label = "Sexo del estudiante")
 ```
 
@@ -175,25 +175,48 @@ webshot::webshot(url ="output/tables/desc01.html" ,file ="output/tables/desc01.p
 
 ### Var dep
 
+desigualdad
+```{r}
+proporcion <- data %>% filter(!is.na(desigualdad))
+proporcion <- prop.table(table(data$desigualdad)) * 100
+proporcion <- as.data.frame(proporcion)
+
+desigualdad_est <- proporcion %>% 
+  ggplot(aes(x = Var1, y = Freq)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Preocupación por la desigualdad") +
+  ylab("Proporción (%)") + 
+  ylim(0,50)+
+  scale_fill_brewer(palette = 1)+
+  theme_bw()+
+  geom_text(aes(label = paste0(round(Freq,1),"%")), color = "black", vjust = -0.5, position = position_dodge(width = 1),size = 4)+
+  scale_x_discrete(label = c("Muy en
+desacuerdo", "Desacuerdo",
+"De acuerdo", "Muy de
+acuerdo"))
+desigualdad_est
+
+ggsave(desigualdad_est, file="output/graphs/desigualdad_est.png", width = 7,height = 7)
+```
+
 desigualdad x sexo
 
 ```{r}
-des <- round(prop.table(table(categorias=data$desigualdad, sexo=data$sexo), margin=2),2)
-des <- as.data.frame(des)
-des$categorias <- factor(des$categorias, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
-
-
-desigualdad_sexo <- des %>% 
-ggplot(aes(x=2,y=-Freq, fill=categorias))+
-  geom_bar(stat = "identity",
-           color="white")+
-  geom_text(aes(label = scales::percent(Freq)),
-              position=position_stack(vjust=0.5),color="black",size=5)+
-  coord_polar(theta = "y")+
+desigualdad_sexo <- data %>% 
+  group_by(sexo) %>% 
+  count(desigualdad) %>% 
+  filter(!is.na(desigualdad)) %>%
+  group_by(sexo) %>% 
+  mutate(proporcion = (n / sum(n))*100 ) %>%
+  ggplot(aes(x = desigualdad, y = proporcion, fill = sexo)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Preocupación por la desigualdad") +
+  ylab("Proporción (%)") + 
   scale_fill_brewer(palette = 1)+
-  theme_void()+
-  facet_wrap(~sexo)
+  guides(fill=guide_legend(title="Sexo")) +
+  theme_bw()+
+  geom_text(aes(label = paste0(round(proporcion,1),"%")), color = "black", vjust = -0.5, position = position_dodge(width = 1),size = 4)
+desigualdad_sexo
 
 ggsave(desigualdad_sexo, file="output/graphs/desigualdad_sexo.png", width = 7,height = 7)
 ```
@@ -201,67 +224,81 @@ ggsave(desigualdad_sexo, file="output/graphs/desigualdad_sexo.png", width = 7,he
 desigualdad x educacion padres
 
 ```{r}
-des_ed <- round(prop.table(table(categorias=data$desigualdad, educ=data$educacion_rec), margin=2),2)
-des_ed <- as.data.frame(des_ed)
-des_ed$categorias <- factor(des_ed$categorias, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+desigualdad_educ <- data %>% 
+  group_by(educacion_rec) %>% 
+  count(desigualdad) %>% 
+  filter(!is.na(desigualdad)) %>%
+  group_by(educacion_rec) %>%  filter(educacion_rec!="Ns/Nr") %>% 
+  mutate(proporcion = (n / sum(n))*100 ) %>%
+  ggplot(aes(x = desigualdad, y = proporcion, fill = educacion_rec)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Preocupación por la desigualdad") +
+  ylab("Proporción (%)") + 
+  scale_fill_brewer(palette = 1,
+                    labels = c("8vo grado
+o menos", "Educación
+secundaria", "Educación
+técnica", "Universidad
+o postgrado"))+
+  guides(fill=guide_legend(title="Nivel educacional
+apoderados")) +
+  theme_bw() +
+  theme(text = element_text(size = 14))+
+  geom_text(aes(label = paste0(round(proporcion,1),"%")), color = "black", vjust = -0.5, position = position_dodge(width = 1),size = 4)
+desigualdad_educ
 
-desigualdad_educ <- des_ed %>% filter(educ!="Ns/Nr") %>% 
-ggplot(aes(x=2,y=-Freq, fill=categorias))+
-  geom_bar(stat = "identity",
-           color="white")+
-  geom_text(aes(label = scales::percent(Freq)),
-              position=position_stack(vjust=0.5),color="black",size=5)+
-  coord_polar(theta = "y")+
-  scale_fill_brewer(palette = 1)+
-  theme_void()+
-  facet_wrap(~educ)
-
-ggsave(desigualdad_educ, file="output/graphs/desigualdad_educ.png", width = 7,height = 7)
+ggsave(desigualdad_educ, file="output/graphs/desigualdad_educ.png", width = 9.5,height = 7)
 ```
 
 desigualdad x dependencia administrativa
 
 ```{r}
-des_dep<- round(prop.table(table(categorias=data$desigualdad, dep=data$cod_depe2), margin=2),2)
-des_dep <- as.data.frame(des_dep)
-des_dep$categorias <- factor(des_dep$categorias, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+desigualdad_dep <- data %>% 
+  group_by(cod_depe2) %>% 
+  count(desigualdad) %>% 
+  filter(!is.na(desigualdad)) %>%
+  group_by(cod_depe2) %>% 
+  mutate(proporcion = (n / sum(n))*100 ) %>%
+  ggplot(aes(x = desigualdad, y = proporcion, fill = cod_depe2)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Preocupación por la desigualdad") +
+  ylab("Proporción (%)") + 
+  scale_fill_brewer(palette = 1,
+                    labels = c("Municipal", "Part.
+subvencionado", "Part.
+privado"))+
+  guides(fill=guide_legend(title="Dependencia
+administrativa")) +
+  theme_bw()+
+  theme(text = element_text(size = 14))+
+  geom_text(aes(label = paste0(round(proporcion,1),"%")), color = "black", vjust = -0.5, position = position_dodge(width = 1),size = 4)
+desigualdad_dep
 
-desigualdad_dep <- des_dep %>%
-ggplot(aes(x=2,y=-Freq, fill=categorias))+
-  geom_bar(stat = "identity",
-           color="white")+
-  geom_text(aes(label = scales::percent(Freq)),
-              position=position_stack(vjust=0.5),color="black",size=5)+
-  coord_polar(theta = "y")+
-  scale_fill_brewer(palette = 1)+
-  theme_void()+
-  facet_wrap(~dep)
-
-ggsave(desigualdad_dep, file="output/graphs/desigualdad_dep.png", width = 7,height = 7)
+ggsave(desigualdad_dep, file="output/graphs/desigualdad_dep.png", width = 9,height = 7)
 ```
 
 desigualdad x clasificación socioeconómica
 
 ```{r}
-des_class<- round(prop.table(table(categorias=data$desigualdad, class=data$cod_grupo_rec), margin=2),2)
-des_class <- as.data.frame(des_class)
-des_class$categorias <- factor(des_class$categorias, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
-
-desigualdad_class <- des_class %>%
-ggplot(aes(x=2,y=-Freq, fill=categorias))+
-  geom_bar(stat = "identity",
-           color="white")+
-  geom_text(aes(label = scales::percent(Freq)),
-              position=position_stack(vjust=0.5),color="black",size=5)+
-  coord_polar(theta = "y")+
+desigualdad_class <- data %>% 
+  group_by(cod_grupo_rec) %>% 
+  count(desigualdad) %>% 
+  filter(!is.na(desigualdad)) %>%
+  group_by(cod_grupo_rec) %>% 
+  mutate(proporcion = (n / sum(n))*100 ) %>%
+  ggplot(aes(x = desigualdad, y = proporcion, fill = cod_grupo_rec)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Preocupación por la desigualdad") +
+  ylab("Proporción (%)") + 
   scale_fill_brewer(palette = 1)+
-  theme_void()+
-  facet_wrap(~class)
+  guides(fill=guide_legend(title="Clasificación
+socioeconómica")) +
+  theme_bw()+
+  theme(text = element_text(size = 14))+
+  geom_text(aes(label = paste0(round(proporcion,1),"%")), color = "black", vjust = -0.5, position = position_dodge(width = 1),size = 4)
+desigualdad_class
 
-ggsave(desigualdad_class, file="output/graphs/desigualdad_class.png", width = 7,height = 7)
+ggsave(desigualdad_class, file="output/graphs/desigualdad_class.png", width = 9,height = 7)
 ```
 ### meritocracia
 
@@ -295,18 +332,26 @@ mean_dep$meritocracia <- factor(mean_dep$meritocracia, labels = c("mean_esf_esc"
 mean_dep$meritocracia <- factor(mean_dep$meritocracia, levels = c("Esfuerzo escuela", "Inteligencia escuela", "Esfuerzo sociedad", "Inteligencia sociedad", "Mérito sociedad"))
 
 meritocracia_dep <- mean_dep %>%
-  ggplot(aes(x=value, y=meritocracia)) +
+  ggplot(aes(x = meritocracia, y = value, fill = cod_depe2)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Meritocracia") +
+  ylab("Promedio") +
+  scale_fill_brewer(palette = 1)+
+  guides(fill=guide_legend(title="Dependencia
+administrativa")) +
   theme_bw() +
-  geom_point(aes(color = cod_depe2, shape = cod_depe2), size = 3) +
-  ylab("Meritocracia")+
-  xlab("")+
-  scale_colour_discrete(name="Dependencia 
-administrativa")+
-  scale_shape_discrete(name="Dependencia 
-administrativa")+
-  scale_x_continuous(limits = c(1, 4),
-                     breaks = seq(1, 4, by = 1),
-                     label = c("Muy en desacuerdo", "En desacuerdo", "De acuerdo", "Muy de acuerdo"))
+  scale_y_continuous(limits = c(0, 4),
+                     breaks = seq(0, 4, by = 1),
+                     label = c("", "Muy en 
+desacuerdo", "En desacuerdo", "De acuerdo", "Muy de 
+acuerdo"))+
+  scale_x_discrete(label = c("Esfuerzo
+escuela", "Inteligencia
+escuela", "Esfuerzo
+sociedad", "Inteligencia
+sociedad", "Mérito
+sociedad"))
+meritocracia_dep
 
 ggsave(meritocracia_dep, file="output/graphs/meritocracia_dep.png", width = 7,height = 7)
 ```
@@ -334,18 +379,26 @@ mean_class$meritocracia <- factor(mean_class$meritocracia, labels = c("mean_esf_
 mean_class$meritocracia <- factor(mean_class$meritocracia, levels = c("Esfuerzo escuela", "Inteligencia escuela", "Esfuerzo sociedad", "Inteligencia sociedad", "Mérito sociedad"))
 
 meritocracia_class <- mean_class %>%
-  ggplot(aes(x=value, y=meritocracia)) +
+  ggplot(aes(x = meritocracia, y = value, fill = cod_grupo_rec)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Meritocracia") +
+  ylab("Promedio") +
+  scale_fill_brewer(palette = 1)+
+  guides(fill=guide_legend(title="Clasificación
+socioeconómica")) +
   theme_bw() +
-  geom_point(aes(color = cod_grupo_rec, shape = cod_grupo_rec), size = 3) +
-  ylab("Meritocracia")+
-  xlab("")+
-  scale_colour_discrete(name="Clasificación
-socioeconómica")+
-  scale_shape_discrete(name="Clasificación
-socioeconómica")+
-  scale_x_continuous(limits = c(1, 4),
-                     breaks = seq(1, 4, by = 1),
-                     label = c("Muy en desacuerdo", "En desacuerdo", "De acuerdo", "Muy de acuerdo"))
+  scale_y_continuous(limits = c(0, 4),
+                     breaks = seq(0, 4, by = 1),
+                     label = c("", "Muy en 
+desacuerdo", "En desacuerdo", "De acuerdo", "Muy de 
+acuerdo"))+
+  scale_x_discrete(label = c("Esfuerzo
+escuela", "Inteligencia
+escuela", "Esfuerzo
+sociedad", "Inteligencia
+sociedad", "Mérito
+sociedad"))
+meritocracia_class
 
 ggsave(meritocracia_class, file="output/graphs/meritocracia_class.png", width = 7,height = 7)
 ```
@@ -373,16 +426,25 @@ mean_sexo$meritocracia <- factor(mean_sexo$meritocracia, labels = c("mean_esf_es
 mean_sexo$meritocracia <- factor(mean_sexo$meritocracia, levels = c("Esfuerzo escuela", "Inteligencia escuela", "Esfuerzo sociedad", "Inteligencia sociedad", "Mérito sociedad"))
 
 meritocracia_sexo <- mean_sexo %>%
-  ggplot(aes(x=value, y=meritocracia)) +
+  ggplot(aes(x = meritocracia, y = value, fill = sexo)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Meritocracia") +
+  ylab("Promedio") +
+  scale_fill_brewer(palette = 1)+
+  guides(fill=guide_legend(title="Sexo")) +
   theme_bw() +
-  geom_point(aes(color = sexo, shape = sexo), size = 3) +
-  ylab("Meritocracia")+
-  xlab("")+
-  scale_colour_discrete(name="Sexo")+
-  scale_shape_discrete(name="Sexo")+
-  scale_x_continuous(limits = c(1, 4),
-                     breaks = seq(1, 4, by = 1),
-                     label = c("Muy en desacuerdo", "En desacuerdo", "De acuerdo", "Muy de acuerdo"))
+  scale_y_continuous(limits = c(0, 4),
+                     breaks = seq(0, 4, by = 1),
+                     label = c("", "Muy en 
+desacuerdo", "En desacuerdo", "De acuerdo", "Muy de 
+acuerdo"))+
+  scale_x_discrete(label = c("Esfuerzo
+escuela", "Inteligencia
+escuela", "Esfuerzo
+sociedad", "Inteligencia
+sociedad", "Mérito
+sociedad"))
+meritocracia_sexo
 
 ggsave(meritocracia_sexo, file="output/graphs/meritocracia_sexo.png", width = 7,height = 7)
 ```
@@ -410,18 +472,31 @@ mean_educ$meritocracia <- factor(mean_educ$meritocracia, labels = c("mean_esf_es
 mean_educ$meritocracia <- factor(mean_educ$meritocracia, levels = c("Esfuerzo escuela", "Inteligencia escuela", "Esfuerzo sociedad", "Inteligencia sociedad", "Mérito sociedad"))
 
 meritocracia_educ <- mean_educ %>% filter(educacion_rec!="Ns/Nr") %>% 
-  ggplot(aes(x=value, y=meritocracia)) +
+  ggplot(aes(x = meritocracia, y = value, fill = educacion_rec)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  xlab("Meritocracia") +
+  ylab("Promedio") +
+  scale_fill_brewer(palette = 1,
+                    labels = c("8vo grado
+o menos", "Educación
+secundaria", "Educación
+técnica", "Universidad
+o postgrado"))+
+  guides(fill=guide_legend(title="Nivel educacional
+apoderados")) +
   theme_bw() +
-  geom_point(aes(color = educacion_rec, shape = educacion_rec), size = 3) +
-  ylab("Meritocracia")+
-  xlab("")+
-  scale_colour_discrete(name="Nivel educacional
-apoderados")+
-  scale_shape_discrete(name="Nivel educacional
-apoderados")+
-  scale_x_continuous(limits = c(1, 4),
-                     breaks = seq(1, 4, by = 1),
-                     label = c("Muy en desacuerdo", "En desacuerdo", "De acuerdo", "Muy de acuerdo"))
+  scale_y_continuous(limits = c(0, 4),
+                     breaks = seq(0, 4, by = 1),
+                     label = c("", "Muy en 
+desacuerdo", "En desacuerdo", "De acuerdo", "Muy de 
+acuerdo"))+
+  scale_x_discrete(label = c("Esfuerzo
+escuela", "Inteligencia
+escuela", "Esfuerzo
+sociedad", "Inteligencia
+sociedad", "Mérito
+sociedad"))
+meritocracia_educ
 
 ggsave(meritocracia_educ, file="output/graphs/meritocracia_educ.png", width = 7,height = 7)
 ```
@@ -430,80 +505,95 @@ ggsave(meritocracia_educ, file="output/graphs/meritocracia_educ.png", width = 7,
 
 * merito soc
 ```{r}
-data$desigualdad<-as_factor(data$desigualdad)
-data$desigualdad <- factor(data$desigualdad, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+data <- data %>% rowwise() %>% mutate(desigualdad_rec = case_when(desigualdad==1 ~ "Desacuerdo",
+                                                             desigualdad==2 ~ "Desacuerdo",
+                                                             desigualdad==3 ~ "De acuerdo",
+                                                             desigualdad==4 ~ "De acuerdo"))
+data$desigualdad_rec <- factor(data$desigualdad_rec, levels = c("Desacuerdo", "De acuerdo"))
 
-data$merito_soc<-as_factor(data$merito_soc)
+data <- data %>% rowwise() %>% mutate(merito_soc_rec = case_when(merito_soc==1 ~ "Desacuerdo",
+                                                             merito_soc==2 ~ "Desacuerdo",
+                                                             merito_soc==3 ~ "De acuerdo",
+                                                             merito_soc==4 ~ "De acuerdo"))
+data$merito_soc_rec <- factor(data$merito_soc_rec, levels = c("Desacuerdo", "De acuerdo"))
 
-data$merito_soc <- factor(data$merito_soc, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
-
-des_mersoc <- data %>% filter(desigualdad!=is.na(desigualdad) & merito_soc!=is.na(merito_soc)) %>% 
+des_mersoc <- data %>% filter(desigualdad_rec!=is.na(desigualdad_rec) & merito_soc_rec!=is.na(merito_soc_rec)) %>% 
   ggplot() +
-  geom_mosaic(aes(x=product(desigualdad, merito_soc), fill=merito_soc)) +
+  geom_mosaic(aes(x=product(desigualdad_rec, merito_soc_rec), fill=merito_soc_rec), color = "black") +
   geom_label(data = layer_data(last_plot(), 1),
              aes(x = (xmin + xmax)/ 2,
                  y = (ymin + ymax)/ 2,
                  label = paste0(round((.wt/sum(.wt))*100,1),"%"))) +
-  labs(y = "Tolerancia desigualdad",
+  labs(y = "Preocupación por la desigualdad",
        x = "Mérito en la sociedad")+
   scale_fill_brewer(palette = 1)+
   theme(legend.position='none')
+des_mersoc
 ```
 
 * esfuerzo soc
 ```{r}
-data$esfuerzo_soc <- factor(data$esfuerzo_soc, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+data <- data %>% rowwise() %>% mutate(esfuerzo_soc_rec = case_when(esfuerzo_soc==1 ~ "Desacuerdo",
+                                                             esfuerzo_soc==2 ~ "Desacuerdo",
+                                                             esfuerzo_soc==3 ~ "De acuerdo",
+                                                             esfuerzo_soc==4 ~ "De acuerdo"))
+data$esfuerzo_soc_rec <- factor(data$esfuerzo_soc_rec, levels = c("Desacuerdo", "De acuerdo"))
 
-des_esfsoc <- data %>% filter(desigualdad!=is.na(desigualdad) & esfuerzo_soc!=is.na(esfuerzo_soc)) %>% 
+des_esfsoc <- data %>% filter(desigualdad_rec!=is.na(desigualdad_rec) & esfuerzo_soc_rec!=is.na(esfuerzo_soc_rec)) %>% 
   ggplot() +
-  geom_mosaic(aes(x=product(desigualdad, esfuerzo_soc), fill=esfuerzo_soc)) +
+  geom_mosaic(aes(x=product(desigualdad_rec, esfuerzo_soc_rec), fill=esfuerzo_soc_rec), color = "black") +
   geom_label(data = layer_data(last_plot(), 1),
              aes(x = (xmin + xmax)/ 2,
                  y = (ymin + ymax)/ 2,
                  label = paste0(round((.wt/sum(.wt))*100,1),"%"))) +
-  labs(y = "Tolerancia desigualdad",
+  labs(y = "Preocupación por la desigualdad",
        x = "Esfuerzo en la sociedad")+
   scale_fill_brewer(palette = 1)+
   theme(legend.position='none')
+des_esfsoc
 ```
 
 * inteligencia soc
 ```{r}
-data$inteligencia_soc <- factor(data$inteligencia_soc, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+data <- data %>% rowwise() %>% mutate(inteligencia_soc_rec = case_when(inteligencia_soc==1 ~ "Desacuerdo",
+                                                             inteligencia_soc==2 ~ "Desacuerdo",
+                                                             inteligencia_soc==3 ~ "De acuerdo",
+                                                             inteligencia_soc==4 ~ "De acuerdo"))
+data$inteligencia_soc_rec <- factor(data$inteligencia_soc_rec, levels = c("Desacuerdo", "De acuerdo"))
 
-des_intsoc<- data %>% filter(desigualdad!=is.na(desigualdad) & inteligencia_soc!=is.na(inteligencia_soc)) %>% 
+des_intsoc<- data %>% filter(desigualdad_rec!=is.na(desigualdad_rec) & inteligencia_soc_rec!=is.na(inteligencia_soc_rec)) %>% 
   ggplot() +
-  geom_mosaic(aes(x=product(desigualdad, inteligencia_soc), fill=inteligencia_soc)) +
+  geom_mosaic(aes(x=product(desigualdad_rec, inteligencia_soc_rec), fill=inteligencia_soc_rec), color = "black") +
   geom_label(data = layer_data(last_plot(), 1),
              aes(x = (xmin + xmax)/ 2,
                  y = (ymin + ymax)/ 2,
                  label = paste0(round((.wt/sum(.wt))*100,1),"%"))) +
-  labs(y = "Tolerancia desigualdad",
+  labs(y = "Preocupación por la desigualdad",
        x = "Inteligencia en la sociedad")+
   scale_fill_brewer(palette = 1)+
   theme(legend.position='none')
 
 desigualdad_meritocracia_soc <- ggarrange(des_mersoc, des_intsoc, des_esfsoc, nrow = 3)
-ggsave(desigualdad_meritocracia_soc, file="output/graphs/desigualdad_meritocracia_soc.png", width = 7,height = 12)
+desigualdad_meritocracia_soc
+ggsave(desigualdad_meritocracia_soc, file="output/graphs/desigualdad_meritocracia_soc.png", width = 7,height = 10)
 ```
 
 * esfuerzo esc
 ```{r}
-data$esfuerzo_esc <- factor(data$esfuerzo_esc, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+data <- data %>% rowwise() %>% mutate(esfuerzo_esc_rec = case_when(esfuerzo_esc==1 ~ "Desacuerdo",
+                                                             esfuerzo_esc==2 ~ "Desacuerdo",
+                                                             esfuerzo_esc==3 ~ "De acuerdo",
+                                                             esfuerzo_esc==4 ~ "De acuerdo"))
+data$esfuerzo_esc_rec <- factor(data$esfuerzo_esc_rec, levels = c("Desacuerdo", "De acuerdo"))
 
-des_esfesc<- data %>% filter(desigualdad!=is.na(desigualdad) & esfuerzo_esc!=is.na(esfuerzo_esc)) %>% 
+des_esfesc<- data %>% filter(desigualdad_rec!=is.na(desigualdad_rec) & esfuerzo_esc_rec!=is.na(esfuerzo_esc_rec)) %>% 
   ggplot() +
-  geom_mosaic(aes(x=product(desigualdad, esfuerzo_esc), fill=esfuerzo_esc)) +
+  geom_mosaic(aes(x=product(desigualdad_rec, esfuerzo_esc_rec), fill=esfuerzo_esc_rec), color = "black") +
   geom_label(data = layer_data(last_plot(), 1),
              aes(x = (xmin + xmax)/ 2,
                  y = (ymin + ymax)/ 2,
                  label = paste0(round((.wt/sum(.wt))*100,1),"%"))) +
-  labs(y = "Tolerancia desigualdad",
+  labs(y = "Preocupación por la desigualdad",
        x = "Esfuerzo en la escuela")+
   scale_fill_brewer(palette = 1)+
   theme(legend.position='none')
@@ -511,22 +601,26 @@ des_esfesc<- data %>% filter(desigualdad!=is.na(desigualdad) & esfuerzo_esc!=is.
 
 * inteligenica esc
 ```{r}
-data$inteligencia_esc <- factor(data$inteligencia_esc, levels = c(1, 2, 3, 4), labels = c("Muy en desacuerdo", "En desacuerdo",
-"De acuerdo", "Muy de acuerdo"))
+data <- data %>% rowwise() %>% mutate(inteligencia_esc_rec = case_when(inteligencia_esc==1 ~ "Desacuerdo",
+                                                             inteligencia_esc==2 ~ "Desacuerdo",
+                                                             inteligencia_esc==3 ~ "De acuerdo",
+                                                             inteligencia_esc==4 ~ "De acuerdo"))
+data$inteligencia_esc_rec <- factor(data$inteligencia_esc_rec, levels = c("Desacuerdo", "De acuerdo"))
 
-des_intesc<- data %>% filter(desigualdad!=is.na(desigualdad) & inteligencia_esc!=is.na(inteligencia_esc)) %>% 
+des_intesc<- data %>% filter(desigualdad_rec!=is.na(desigualdad_rec) & inteligencia_esc_rec!=is.na(inteligencia_esc_rec)) %>% 
   ggplot() +
-  geom_mosaic(aes(x=product(desigualdad, inteligencia_esc), fill=inteligencia_esc)) +
+  geom_mosaic(aes(x=product(desigualdad_rec, inteligencia_esc_rec), fill=inteligencia_esc_rec), color = "black") +
   geom_label(data = layer_data(last_plot(), 1),
              aes(x = (xmin + xmax)/ 2,
                  y = (ymin + ymax)/ 2,
                  label = paste0(round((.wt/sum(.wt))*100,1),"%"))) +
-  labs(y = "Tolerancia desigualdad",
+  labs(y = "Preocupación por la desigualdad",
        x = "Inteligencia en la escuela")+
   scale_fill_brewer(palette = 1)+
   theme(legend.position='none')
 
 desigualdad_meritocracia_esc <- ggarrange(des_intesc, des_esfesc, nrow = 2)
+desigualdad_meritocracia_esc
 ggsave(desigualdad_meritocracia_esc, file="output/graphs/desigualdad_meritocracia_esc.png", width = 7,height = 10)
 ```
 
